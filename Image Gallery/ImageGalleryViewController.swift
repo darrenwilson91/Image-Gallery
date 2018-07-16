@@ -8,8 +8,7 @@
 
 import UIKit
 
-class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UIScrollViewDelegate, UICollectionViewDropDelegate, UICollectionViewDelegateFlowLayout {
-
+class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UIScrollViewDelegate, UICollectionViewDropDelegate, UICollectionViewDragDelegate, UICollectionViewDelegateFlowLayout {
 
     @IBOutlet weak var scrollView: UIScrollView! {
         didSet {
@@ -22,10 +21,12 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
             galleryCollectionView.delegate = self
             galleryCollectionView.dataSource = self
             galleryCollectionView.dropDelegate = self
+            galleryCollectionView.dragDelegate = self
         }
     }
     
-    var galleryImages = [(URL, Double)]()
+    var galleryImageURLs = [URL]()
+    var galleryImageAspectRatios = [CGFloat]()
     var galleryImageWidth: CGFloat = DEFAULT_GALLERY_IMAGE_WIDTH
     var imageFetcher: ImageFetcher?
     
@@ -40,7 +41,7 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
     }
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return galleryImages.count
+        return galleryImageURLs.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -50,20 +51,20 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
         if let galleryCell = cell as? ImageGalleryCell {
             imageFetcher = ImageFetcher(handler: { (url, image) in
                 DispatchQueue.main.async {
-                    if self.galleryImages[indexPath.item].0 == url {
+                    if self.galleryImageURLs[indexPath.item] == url {
                         galleryCell.image.image = image
                     }
                 }
             })
             
-            imageFetcher?.fetch(galleryImages[indexPath.item].0)
+            imageFetcher?.fetch(galleryImageURLs[indexPath.item])
         }
 
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: galleryImageWidth, height: galleryImageWidth)
+        return CGSize(width: galleryImageWidth, height: galleryImageWidth * galleryImageAspectRatios[indexPath.item])
     }
     
     // Perform the drop
@@ -73,18 +74,27 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
         
         
         for item in coordinator.items {
-            let placeholderContext = coordinator.drop(coordinator.items[0].dragItem, to: UICollectionViewDropPlaceholder(insertionIndexPath: destinationIndexPath, reuseIdentifier: "ImageGalleryCellLoading"))
-            
             if let sourceIndexPath = item.sourceIndexPath {
                 // TODO: Handle dragging from within the gallery
-                collectionView.performBatchUpdates({
-                    collectionView.deleteItems(at: [sourceIndexPath])
-                    collectionView.insertItems(at: [destinationIndexPath])
-                }, completion: nil)
+                if let url = item.dragItem.localObject as? URL {
+                    collectionView.performBatchUpdates({
+                        galleryImageURLs.remove(at: sourceIndexPath.item)
+                        let removedAspectRatio = galleryImageAspectRatios.remove(at: sourceIndexPath.item)
+                        collectionView.deleteItems(at: [sourceIndexPath])
+                        
+                        galleryImageURLs.insert(url, at: destinationIndexPath.item)
+                        galleryImageAspectRatios.insert(removedAspectRatio, at: destinationIndexPath.item)
+                        collectionView.insertItems(at: [destinationIndexPath])
+                    }, completion: nil)
+                    
+                    coordinator.drop(item.dragItem, toItemAt: destinationIndexPath)
+                }
             } else {
+                let placeholderContext = coordinator.drop(item.dragItem, to: UICollectionViewDropPlaceholder(insertionIndexPath: destinationIndexPath, reuseIdentifier: "ImageGalleryCellLoading"))
+                
                 item.dragItem.itemProvider.loadObject(ofClass: UIImage.self) { (provider, error) in
                     if let image = provider as? UIImage {
-                        //TODO: Calculate and store the image aspect ratio
+                        self.galleryImageAspectRatios.insert(image.aspectRatio, at: destinationIndexPath.item)
                     }
                 }
                         
@@ -92,7 +102,7 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
                     DispatchQueue.main.async {
                         if let url = provider {
                             placeholderContext.commitInsertion(dataSourceUpdates: { insertionIndexPath in
-                                self.galleryImages.insert((url, 1.0), at: insertionIndexPath.item)
+                                self.galleryImageURLs.insert(url, at: insertionIndexPath.item)
                             })
                         } else {
                             placeholderContext.deletePlaceholder()
@@ -117,10 +127,41 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
             return UICollectionViewDropProposal(operation: .copy, intent: .insertAtDestinationIndexPath)
         }
     }
+    
+    func collectionView(_ collectionView: UICollectionView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
+        session.localContext = collectionView
+        return dragItem(at: indexPath)
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, itemsForAddingTo session: UIDragSession, at indexPath: IndexPath, point: CGPoint) -> [UIDragItem] {
+        return dragItem(at: indexPath)
+    }
+    
+    private func dragItem(at indexPath: IndexPath) -> [UIDragItem] {
+        if let image = (galleryCollectionView.cellForItem(at: indexPath) as? ImageGalleryCell)?.image.image {
+            let url = galleryImageURLs[indexPath.item]
+            
+            let dragItem = UIDragItem(itemProvider: NSItemProvider(object: url as NSURL))
+            dragItem.itemProvider.registerObject(image, visibility: .all)
+            dragItem.localObject = url as NSURL
+            return [dragItem]
+        }
+        return []
+    }
 }
 
 extension ImageGalleryViewController {
     static var DEFAULT_GALLERY_IMAGE_WIDTH: CGFloat {
         return 120
+    }
+}
+
+extension UIImage {
+    var aspectRatio: CGFloat {
+        if size.width > 0 {
+            return size.height / size.width
+        } else {
+            return 1.0
+        }
     }
 }
