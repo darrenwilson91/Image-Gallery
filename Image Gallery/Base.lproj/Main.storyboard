@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="14113" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="14113" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="tFV-N4-jco">
     <device id="ipad9_7" orientation="landscape">
         <adaptation id="fullscreen"/>
     </device>
@@ -10,10 +10,10 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
-        <!--Image Gallery View Controller-->
+        <!--Gallery-->
         <scene sceneID="tne-QT-ifu">
             <objects>
-                <viewController id="BYZ-38-t0r" customClass="ImageGalleryViewController" customModule="Image_Gallery" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController title="Gallery" id="BYZ-38-t0r" customClass="ImageGalleryViewController" customModule="Image_Gallery" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
                         <rect key="frame" x="0.0" y="0.0" width="1024" height="768"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -92,13 +92,64 @@
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
+                    <navigationItem key="navigationItem" title="Gallery" id="iAE-VU-j2m"/>
                     <connections>
                         <outlet property="galleryCollectionView" destination="wPQ-Mp-PTQ" id="75W-XX-ykx"/>
-                        <outlet property="scrollView" destination="xXi-JJ-IOW" id="xQD-WE-8Px"/>
+                        <segue destination="AVf-D2-HP5" kind="show" identifier="showImageDetail" id="jQg-4z-hBe"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
+            <point key="canvasLocation" x="748.828125" y="33.59375"/>
+        </scene>
+        <!--Gallery Image-->
+        <scene sceneID="4Zc-Gm-ZkC">
+            <objects>
+                <viewController title="Gallery Image" id="AVf-D2-HP5" customClass="ImageDetailViewController" customModule="Image_Gallery" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="nwS-tY-YBa">
+                        <rect key="frame" x="0.0" y="0.0" width="1024" height="768"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <scrollView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="8kR-va-yLb">
+                                <rect key="frame" x="0.0" y="20" width="1024" height="748"/>
+                            </scrollView>
+                        </subviews>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstItem="ScN-DK-wep" firstAttribute="bottom" secondItem="8kR-va-yLb" secondAttribute="bottom" id="52b-2l-HEX"/>
+                            <constraint firstItem="8kR-va-yLb" firstAttribute="top" secondItem="ScN-DK-wep" secondAttribute="top" id="5Jn-j6-LsW"/>
+                            <constraint firstItem="ScN-DK-wep" firstAttribute="trailing" secondItem="8kR-va-yLb" secondAttribute="trailing" id="NFq-vg-RDs"/>
+                            <constraint firstItem="8kR-va-yLb" firstAttribute="leading" secondItem="ScN-DK-wep" secondAttribute="leading" id="ja2-WA-hym"/>
+                        </constraints>
+                        <viewLayoutGuide key="safeArea" id="ScN-DK-wep"/>
+                    </view>
+                    <connections>
+                        <outlet property="scrollView" destination="8kR-va-yLb" id="Lej-xQ-fsu"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iNj-5p-KWb" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1804" y="45"/>
+        </scene>
+        <!--Navigation Controller-->
+        <scene sceneID="l37-O7-osV">
+            <objects>
+                <navigationController automaticallyAdjustsScrollViewInsets="NO" navigationBarHidden="YES" id="tFV-N4-jco" sceneMemberID="viewController">
+                    <toolbarItems/>
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="eB0-oP-O71">
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <nil name="viewControllers"/>
+                    <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="wH3-oF-4YR">
+                        <autoresizingMask key="autoresizingMask"/>
+                    </toolbar>
+                    <connections>
+                        <segue destination="BYZ-38-t0r" kind="relationship" relationship="rootViewController" id="5R0-m5-TgL"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="Nqb-0n-cxb" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="116.60156249999999" y="-651.5625"/>
         </scene>
     </scenes>
 </document>

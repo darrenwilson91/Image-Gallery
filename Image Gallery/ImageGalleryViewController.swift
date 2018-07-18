@@ -9,12 +9,6 @@
 import UIKit
 
 class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UIScrollViewDelegate, UICollectionViewDropDelegate, UICollectionViewDragDelegate, UICollectionViewDelegateFlowLayout {
-
-    @IBOutlet weak var scrollView: UIScrollView! {
-        didSet {
-            scrollView.delegate = self
-        }
-    }
     
     @IBOutlet weak var galleryCollectionView: UICollectionView! {
         didSet {
@@ -22,41 +16,54 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
             galleryCollectionView.dataSource = self
             galleryCollectionView.dropDelegate = self
             galleryCollectionView.dragDelegate = self
+            galleryCollectionView.allowsSelection = true
+            
+            let pinchGestureRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(adjustCellWidth(byHandlingGestureRecognizedBy:)))
+            galleryCollectionView.addGestureRecognizer(pinchGestureRecognizer)
         }
     }
     
     var galleryImageURLs = [URL]()
     var galleryImageAspectRatios = [CGFloat]()
     var galleryImageWidth: CGFloat = DEFAULT_GALLERY_IMAGE_WIDTH
-    var imageFetcher: ImageFetcher?
+    var imageFetcherForIndexPath = [IndexPath:ImageFetcher]()
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         
+        navigationController?.setNavigationBarHidden(true, animated: true)
     }
     
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        scrollView.contentSize = galleryCollectionView.frame.size
-    }
-
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return galleryImageURLs.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ImageGalleryCell", for: indexPath)
+        self.imageFetcherForIndexPath.removeValue(forKey: indexPath)
+        
+        let activityIndicator = UIActivityIndicatorView(activityIndicatorStyle: .gray)
+        activityIndicator.hidesWhenStopped = true
+        activityIndicator.frame = cell.frame
+        cell.backgroundView = activityIndicator
+        activityIndicator.startAnimating()
         
         if let galleryCell = cell as? ImageGalleryCell {
-            imageFetcher = ImageFetcher(handler: { (url, image) in
+            galleryCell.image.image = nil
+            
+            imageFetcherForIndexPath[indexPath] = ImageFetcher(handler: { (url, image) in
                 DispatchQueue.main.async {
                     if self.galleryImageURLs[indexPath.item] == url {
+                        if let activityIndicator = galleryCell.backgroundView as? UIActivityIndicatorView {
+                            activityIndicator.stopAnimating()
+                        }
                         galleryCell.image.image = image
                     }
+                    self.imageFetcherForIndexPath.removeValue(forKey: indexPath)
                 }
             })
             
-            imageFetcher?.fetch(galleryImageURLs[indexPath.item])
+            imageFetcherForIndexPath[indexPath]?.fetch(galleryImageURLs[indexPath.item])
         }
 
         return cell
@@ -91,13 +98,13 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
             } else {
                 let placeholderContext = coordinator.drop(item.dragItem, to: UICollectionViewDropPlaceholder(insertionIndexPath: destinationIndexPath, reuseIdentifier: "ImageGalleryCellLoading"))
                 
-                item.dragItem.itemProvider.loadObject(ofClass: UIImage.self) { (provider, error) in
+                _ = item.dragItem.itemProvider.loadObject(ofClass: UIImage.self) { (provider, error) in
                     if let image = provider as? UIImage {
                         self.galleryImageAspectRatios.insert(image.aspectRatio, at: destinationIndexPath.item)
                     }
                 }
                         
-                item.dragItem.itemProvider.loadObject(ofClass: URL.self, completionHandler: { (provider, error) in
+                _ = item.dragItem.itemProvider.loadObject(ofClass: URL.self, completionHandler: { (provider, error) in
                     DispatchQueue.main.async {
                         if let url = provider {
                             placeholderContext.commitInsertion(dataSourceUpdates: { insertionIndexPath in
@@ -147,11 +154,49 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
         }
         return []
     }
+    
+    @objc
+    private func adjustCellWidth(byHandlingGestureRecognizedBy recognizer: UIPinchGestureRecognizer) {
+        switch recognizer.state {
+        case .changed, .ended:
+            if !( (galleryImageWidth >= galleryCollectionView.frame.width * 0.8) && (recognizer.scale >= 1.0)
+                || (galleryImageWidth <= galleryCollectionView.frame.width * 0.1) && (recognizer.scale <= 1.0)) {
+                galleryImageWidth *= recognizer.scale
+                recognizer.scale = 1.0
+                galleryCollectionView.collectionViewLayout.invalidateLayout()
+            }
+        default: break
+        }
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        performSegue(withIdentifier: "showImageDetail", sender: collectionView.cellForItem(at: indexPath))
+    }
+    
+    // MARK: - Navigation
+    
+    // In a storyboard-based application, you will often want to do a little preparation before navigation
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        // Get the new view controller using segue.destinationViewController.
+        // Pass the selected object to the new view controller.
+        if segue.identifier == "showImageDetail" {
+            if let senderCell = sender as? ImageGalleryCell {
+                if let imageDetailViewController = segue.destination as? ImageDetailViewController {
+                    if let indexPath = galleryCollectionView.indexPath(for: senderCell) {
+                        let imageUrl = galleryImageURLs[indexPath.item]
+                        
+                        imageDetailViewController.imageURL = imageUrl
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 extension ImageGalleryViewController {
     static var DEFAULT_GALLERY_IMAGE_WIDTH: CGFloat {
-        return 120
+        return 300
     }
 }
 
