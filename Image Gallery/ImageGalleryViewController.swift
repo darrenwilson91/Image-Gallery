@@ -23,8 +23,8 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
         }
     }
     
-    var galleryImageURLs = [URL]()
-    var galleryImageAspectRatios = [CGFloat]()
+    var imageGallery = ImageGallery()
+    
     var galleryImageWidth: CGFloat = DEFAULT_GALLERY_IMAGE_WIDTH
     var imageFetcherForIndexPath = [IndexPath:ImageFetcher]()
     
@@ -35,7 +35,7 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return galleryImageURLs.count
+        return imageGallery.imageCount
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -49,28 +49,28 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
         activityIndicator.startAnimating()
         
         if let galleryCell = cell as? ImageGalleryCell {
-            galleryCell.image.image = nil
+            galleryCell.imageView.image = nil
             
             imageFetcherForIndexPath[indexPath] = ImageFetcher(handler: { (url, image) in
                 DispatchQueue.main.async {
-                    if self.galleryImageURLs[indexPath.item] == url {
+                    if self.imageGallery.imageURLs[indexPath.item] == url {
                         if let activityIndicator = galleryCell.backgroundView as? UIActivityIndicatorView {
                             activityIndicator.stopAnimating()
                         }
-                        galleryCell.image.image = image
+                        galleryCell.imageView.image = image
                     }
                     self.imageFetcherForIndexPath.removeValue(forKey: indexPath)
                 }
             })
             
-            imageFetcherForIndexPath[indexPath]?.fetch(galleryImageURLs[indexPath.item])
+            imageFetcherForIndexPath[indexPath]?.fetch(imageGallery.imageURLs[indexPath.item])
         }
 
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: galleryImageWidth, height: galleryImageWidth * galleryImageAspectRatios[indexPath.item])
+        return CGSize(width: galleryImageWidth, height: galleryImageWidth * imageGallery.imageAspectRatios[indexPath.item])
     }
     
     // Perform the drop
@@ -84,12 +84,12 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
                 // TODO: Handle dragging from within the gallery
                 if let url = item.dragItem.localObject as? URL {
                     collectionView.performBatchUpdates({
-                        galleryImageURLs.remove(at: sourceIndexPath.item)
-                        let removedAspectRatio = galleryImageAspectRatios.remove(at: sourceIndexPath.item)
+                        imageGallery.imageURLs.remove(at: sourceIndexPath.item)
+                        let removedAspectRatio = imageGallery.imageAspectRatios.remove(at: sourceIndexPath.item)
                         collectionView.deleteItems(at: [sourceIndexPath])
                         
-                        galleryImageURLs.insert(url, at: destinationIndexPath.item)
-                        galleryImageAspectRatios.insert(removedAspectRatio, at: destinationIndexPath.item)
+                        imageGallery.imageURLs.insert(url, at: destinationIndexPath.item)
+                        imageGallery.imageAspectRatios.insert(removedAspectRatio, at: destinationIndexPath.item)
                         collectionView.insertItems(at: [destinationIndexPath])
                     }, completion: nil)
                     
@@ -100,7 +100,7 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
                 
                 _ = item.dragItem.itemProvider.loadObject(ofClass: UIImage.self) { (provider, error) in
                     if let image = provider as? UIImage {
-                        self.galleryImageAspectRatios.insert(image.aspectRatio, at: destinationIndexPath.item)
+                        self.imageGallery.imageAspectRatios.insert(image.aspectRatio, at: destinationIndexPath.item)
                     }
                 }
                         
@@ -108,7 +108,7 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
                     DispatchQueue.main.async {
                         if let url = provider {
                             placeholderContext.commitInsertion(dataSourceUpdates: { insertionIndexPath in
-                                self.galleryImageURLs.insert(url, at: insertionIndexPath.item)
+                                self.imageGallery.imageURLs.insert(url, at: insertionIndexPath.item)
                             })
                         } else {
                             placeholderContext.deletePlaceholder()
@@ -144,8 +144,8 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
     }
     
     private func dragItem(at indexPath: IndexPath) -> [UIDragItem] {
-        if let image = (galleryCollectionView.cellForItem(at: indexPath) as? ImageGalleryCell)?.image.image {
-            let url = galleryImageURLs[indexPath.item]
+        if let image = (galleryCollectionView.cellForItem(at: indexPath) as? ImageGalleryCell)?.imageView.image {
+            let url = imageGallery.imageURLs[indexPath.item]
             
             let dragItem = UIDragItem(itemProvider: NSItemProvider(object: url as NSURL))
             dragItem.itemProvider.registerObject(image, visibility: .all)
@@ -183,7 +183,7 @@ class ImageGalleryViewController: UIViewController, UICollectionViewDelegate, UI
             if let senderCell = sender as? ImageGalleryCell {
                 if let imageDetailViewController = segue.destination as? ImageDetailViewController {
                     if let indexPath = galleryCollectionView.indexPath(for: senderCell) {
-                        let imageUrl = galleryImageURLs[indexPath.item]
+                        let imageUrl = imageGallery.imageURLs[indexPath.item]
                         
                         imageDetailViewController.imageURL = imageUrl
                     }
